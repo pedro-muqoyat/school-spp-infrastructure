@@ -3,12 +3,6 @@
   
   # Sistem Informasi Manajemen Keuangan Sekolah (SPP)
   **Versi 1.0.5 - Enterprise Edition**
-
-  [![PHP 8.3+](https://shields.io)](https://php.net)
-  [![Laravel 11](https://shields.io)](https://laravel.com)
-  [![Filament v3](https://shields.io)](https://filamentphp.com)
-  [![Test Suite](https://shields.io)](https://github.com)
-  [![Codebase Status](https://shields.io)](#)
 </div>
 
 ---
