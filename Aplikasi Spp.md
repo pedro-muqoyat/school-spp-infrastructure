@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="https://githubusercontent.com" width="300" alt="Laravel Logo">
   
   # Sistem Informasi Manajemen Keuangan Sekolah (SPP)
   **Versi 1.0.5 - Enterprise Edition**
