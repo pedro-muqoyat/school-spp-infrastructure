@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  # 1. DATABASE CORE (PostgreSQL 15)
+  postgres:
+    image: postgres:15-alpine
+    container_name: db_main
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      # Injeksi otomatis struktur awal database saat pertama kali diangkat
+      - ./init-dbs.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: >
+      postgres
+      -c shared_buffers=1536MB
+      -c work_mem=16MB
+      -c max_connections=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USERNAME} -d $${DB_NAME}"]
+      interval: 5s
+      retries: 5
+      timeout: 5s
+    networks:
+      - sekolah_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 4G
+
+  # 2. REDIS (Cache & Antrean Antarmuka SPP)
+  redis:
+    image: redis:alpine
+    container_name: redis_cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 3
+      timeout: 5s
+    networks:
+      - sekolah_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 512M
+
+  # 3. SPP APP (FrankenPHP Worker Mode)
+  spp_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_spp
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      FRANKENPHP_CONFIG: "worker /var/www/html/public/index.php 10"
+    volumes:
+      - ./.env:/var/www/html/.env
+      - storage_data:/var/www/html/storage
+    networks:
+      - sekolah_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 1G
+
+  # 4. SPP ASYNC WORKER (Pemroses Antrean & Generasi Cetak PDF)
+  spp_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_spp_worker
+    command: php /var/www/html/artisan queue:work redis --tries=3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./.env:/var/www/html/.env
+      - storage_data:/var/www/html/storage
+    networks:
+      - sekolah_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 1G
+
+  # 5. SPP AUTOMATED SCHEDULER (Cron Server)
+  spp_scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spp_scheduler
+    command: php /var/www/html/artisan schedule:work
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./.env:/var/www/html/.env
+    networks:
+      - sekolah_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 250M
+
+  # 6. INGRESS & SECURE PROXY (Cloudflare Tunnel)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARED_TOKEN}
+    networks:
+      - sekolah_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 128M
+
+volumes:
+  pg_data:
+  storage_data:
+
+networks:
+  sekolah_net:
+    driver: bridge

@@ -1,0 +1,33 @@
+# === Kredensial & File Rahasia ===
+.env
+.env.production
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+
+# === Database Dumps & Backups ===
+*.sql
+backups/
+postgres_data/
+
+# === Log Aplikasi ===
+*.log
+spp/storage/logs/*.log
+
+# === OS & IDE Artifacts ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# === Dependensi Aplikasi ===
+spp/vendor/
+spp/node_modules/
+spp/public/build/
+spp/public/storage
